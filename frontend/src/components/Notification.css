@@ -1,0 +1,28 @@
+.notification {
+  position: fixed;
+  
+  background-color:whitesmoke;
+  color: black;
+  padding: 1%;
+  border-radius: 5%;
+margin-top: -15%;
+margin-left: 25%;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.notification.show {
+  opacity: 1;
+}
+
+/* Notification Content */
+.notification p {
+  font-size: 70%;
+ font-family:Arial, Helvetica, sans-serif;
+}
+
+/* Notification Buttons */
+.notification-buttons {
+  display: flex;
+  
+}
+
