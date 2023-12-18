@@ -7,14 +7,31 @@ import CanvasJSReact from '@canvasjs/react-charts';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Line, Circle } from 'rc-progress';
-
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js/auto';
   
 var CanvasJSChart = CanvasJSReact.CanvasJSChart;
 
+Chart.register(LinearScale, CategoryScale, Title, Tooltip, Legend);
 const ExpenseStatistics = () => {
   const [data, setData] = useState({
     revenueData: [],
     expenseData: [],
+    labels: [],
+    datasets: [
+      {
+        label: 'Dépense par Catégorie',
+        data: [],
+        backgroundColor: ["blueviolet", "greenyellow", "rgb(255, 0, 212)", "rgb(0, 255, 255)", "yellow"],
+      },
+    ],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState();
@@ -41,84 +58,67 @@ const ExpenseStatistics = () => {
       </div>
     );
   };
-  
-  
-  
-  
-  
-  const fetchData = async () => {
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get('http://localhost:5000/Acceuil', {
-        params: {
-          startDate: startDate?.toISOString(),
-          endDate: endDate?.toISOString(),
-        },
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      const revenueData = response.data.Revenue.map((item) => ({
-        x: new Date(item.Date),
-        y: item.Total,
-      }));
-
-      const expenseData = response.data.Depense.map((item) => ({
-        x: new Date(item.Date),
-        y: item.Total,
-      }));
-
-      setData({ revenueData, expenseData });
-    } catch (error) {
-      console.error('Error fetching data:', error.message);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
-  }, [startDate, endDate]);
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
 
-  const optionsRevenue = {
-    title: {
-      text: '',
-    },
-    axisX: {
-      title: 'Date',
-    },
-    axisY: {
-      title: 'Montant',
-    },
-    data: [
-      {
-        type: 'line',
-        name: 'Revenue',
-        showInLegend: true,
-        dataPoints: data.revenueData,
+        const response = await axios.get('http://localhost:5000/statistics', {
+          params: {
+            startDate: startDate?.toISOString(),
+            endDate: endDate?.toISOString(),
+          },
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        const categories = response.data.Statistique.map((entry) => entry.Categorie);
+        const totalAmounts = response.data.Statistique.map((entry) => entry.Total);
+
+        setData({
+          labels: categories,
+          datasets: [
+            {
+              label: 'Dépense par Catégorie',
+              data: totalAmounts,
+              backgroundColor: ["blueviolet", "greenyellow", "rgb(255, 0, 212)", "rgb(0, 255, 255)", "yellow"],
+            },
+          ],
+        });
+      } catch (error) {
+        console.error('Error fetching data:', error.message);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  },  [startDate, endDate]);
+
+  const options = {
+    indexAxis: 'y',
+    elements: {
+      bar: {
+        borderWidth: 2,
       },
-    ],}
-    const optionsDepense = {
+    },
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
       title: {
-        text: '',
+        display: true,
+        text: 'Dépense par Catégorie',
       },
-      axisX: {
-        title: 'Date',
-      },
-      axisY: {
-        title: 'Montant',
-      },
-      data:[
-        {
-        type: 'line',
-        name: 'Dépenses',
-        showInLegend: true,
-        dataPoints: data.expenseData,
-      },
-    ],
+    },
   };
+  
+  
+  
+  
+  
+  
 
   
   useEffect(() => {
@@ -241,53 +241,9 @@ const ExpenseStatistics = () => {
           />
         )}
         </div>
-        <div className="graphic">
-          <h1>Revenues par rapport au temps</h1>
-          <div className='date-filters'>
-            <h6>Plage de date:</h6>
-            <DatePicker
-              selected={startDate}
-              onChange={(date) => setStartDate(date)}
-              placeholderText="Select start date"
-            />
-            <DatePicker
-              selected={endDate}
-              onChange={(date) => setEndDate(date)}
-              placeholderText="Select end date"
-            />
-          </div>
-          <div style={{ width: '80%', margin: 'auto' }}>
-            {data.revenueData.length > 0  ? (
-              <CanvasJSChart options={optionsRevenue} />
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <div className="statistic_container">
-        <div className="graphic">
-          <h1>Depenses par rapport au temps</h1>
-          <div className='date-filters'>
-            <h6>Plage de date:</h6>
-            <DatePicker
-              selected={startDate}
-              onChange={(date) => setStartDate(date)}
-              placeholderText="Select start date"
-            />
-            <DatePicker
-              selected={endDate}
-              onChange={(date) => setEndDate(date)}
-              placeholderText="Select end date"
-            />
-          </div>
-          <div style={{ width: '80%', margin: 'auto' }}>
-            { data.expenseData.length > 0 ? (
-              <CanvasJSChart options={optionsDepense} />
-            ) : null}
-          </div>
-        </div>
-      </div>
+        <div className="statistic_container">
+         
       
-      <div className="statistic_container">
   <div className="circle total-montant">
     <div className="message-container">
       <div className="message-title">Votre montant total</div>
@@ -314,8 +270,28 @@ const ExpenseStatistics = () => {
 </div>
 
 </div>
-
-
+</div>
+<div className="statistic_container">
+        <div className="graphic">
+          <h1>Statistique des depenses par rapport a categories</h1>
+          <div className='date-filters'>
+            <h6>Plage de date:</h6>
+            <DatePicker
+              selected={startDate}
+              onChange={(date) => setStartDate(date)}
+              placeholderText="Select start date"
+            />
+            <DatePicker
+              selected={endDate}
+              onChange={(date) => setEndDate(date)}
+              placeholderText="Select end date"
+            />
+          </div>
+          <div style={{ width: '80%', margin: 'auto' }}>
+            {data !== undefined ? <Bar data={data} /> : null}
+          </div>
+        </div>
+      </div>
 
     </div>
   );

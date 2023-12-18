@@ -1,6 +1,5 @@
 import User from "../models/User.js";
 import Depense from "../models/Depense.js";
-import Revenue from "../models/Revenue.js";
 import Categories from '../models/Categories.js';
 import revenues from'../models/Revenue.js';
 import crypto from 'crypto';
@@ -57,37 +56,52 @@ export const Login = async(req, res) => {
         res.status(404).json({msg:"User Not Found "});
     }
 }
-export const AjoutDepense = async (req, res) => {
-  const { Montant, Categorie, Date, Description } = req.body;
-  try {
-    const category = await Categories.findOne({
-      where: { nom_cat: Categorie },
-    });
+export const Ajout = async (req, res) => {
+  const { Montant, Categorie, Date, Description, type } = req.body;
 
-    if (!category) {
-      return res.status(400).json({ msg: "Category not found" });
+  try {
+    if (Categorie) {
+      const category = await Categories.findOne({
+        where: { nom_cat: Categorie },
+      });
+
+      if (!category) {
+        return res.status(400).json({ msg: "Category not found" });
+      }
+
+      // Assuming you have some database model or ORM to handle database operations
+      if (type === 'Depense') {
+        // Insert data into 'depense' table
+        await Depense.create({
+          Montant: Montant,
+          Categorie: Categorie, 
+          Date: Date,
+          Description: Description,
+          id_cat: category.id_cat, 
+          id: req.user.userId,
+        });
+      } 
+      else if (type === 'Revenue') {
+        // Insert data into 'revenue' table
+        await revenues.create({
+          Montant,
+          Categorie: Categorie, 
+          Date,
+          Description,
+          id_cat: category.id_cat, 
+          id: req.user.userId,
+        });
+      } else {
+        return res.status(400).json({ error: 'Invalid transaction type' });
+      }
+
+      res.status(200).json({ success: true });
     }
-  
-    const newExpense = await Depense.create({
-      
-      Montant: Montant,
-      Categorie: Categorie, 
-      Date: Date,
-      Description: Description,
-      id_cat: category.id_cat, 
-      id: req.user.userId,
-  
-    });
-    res.json({ msg: "Ajouté avec succès", newExpense });
   } catch (error) {
-    console.error("Error in AjoutDepense:", error);
-    return res.status(500).json({ msg: "Erreur", error: error.message });
+    console.error('Error processing transaction:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
-
-
-
-
 
   export const Historique = async (req, res) => {
     try {
@@ -168,8 +182,29 @@ export const Email= async(req, res) => {
                 [db.Sequelize.Op.between]: [startDate, endDate],},
                 id: req.user.userId,},
           });
+          // Group and sum the Montant by Categorie
+          const statisticsRevenue = await revenues.findAll({
+            attributes: ['Date', [db.fn('SUM', db.col('Montant')), 'Total']],
+            group: ['Date'],
+            where: {
+              Date: {
+                [db.Sequelize.Op.between]: [startDate, endDate],},
+                id: req.user.userId,},
+          });
          
-          res.json(statistics);
+          
+          const statisticsDepense = await Depense.findAll({
+            attributes: ['Date', [db.fn('SUM', db.col('Montant')), 'Total']],
+            group: ['Date'],
+            where: {
+              Date: {
+                [db.Sequelize.Op.between]: [startDate, endDate],},
+                id: req.user.userId,},
+          });
+         
+          res.json({Depense:statisticsDepense,Revenue:statisticsRevenue,Statistique:statistics});
+     
+
         } catch (error) {
           console.error(error);
           return res.status(500).json({ msg: 'Error while fetching statistics' });
@@ -206,7 +241,7 @@ export const Email= async(req, res) => {
           });
       
           res.json({ msg: "Category added successfully", newCategory });
-        } catch (error) {
+        } catch (error) {    
           console.error("Error in addCategory:", error);
           return res.status(500).json({ msg: "Erreur", error: error.message });
         }
@@ -366,7 +401,7 @@ export const Email= async(req, res) => {
           const startDate = req.query.startDate ?? '00-00-0000'; // Assuming you pass startDate and endDate as query parameters
           const endDate = req.query.endDate ?? tempsEnMs ;
           // Group and sum the Montant by Categorie
-          const statisticsRevenue = await Revenue.findAll({
+          const statisticsRevenue = await revenues.findAll({
             attributes: ['Date', [db.fn('SUM', db.col('Montant')), 'Total']],
             group: ['Date'],
             where: {
@@ -392,13 +427,16 @@ export const Email= async(req, res) => {
         }
       };
 
+      
+      
+
       export const MontantAcceuil = async (req, res) => {
         try {
           const startDate = req.query.startDate ?? '00-00-0000'; // Assuming you pass startDate and endDate as query parameters
           const endDate = req.query.endDate ?? new Date();
       
           // Calculate the total revenue
-          const totalRevenue = await Revenue.sum('Montant', {
+          const totalRevenue = await revenues.sum('Montant', {
             where: {
               Date: {
                 [db.Sequelize.Op.between]: [startDate, endDate],
